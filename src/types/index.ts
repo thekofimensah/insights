@@ -2,6 +2,7 @@ export interface MarketData {
   marketCap: number;
   price: number;
   tvl: number;
+  ath_multiplier: number;
   trustScore: number;
   sentimentScore: number;
   raw_data: string;

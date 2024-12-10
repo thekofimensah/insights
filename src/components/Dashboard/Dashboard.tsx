@@ -31,6 +31,7 @@ export function Dashboard({ data }: DashboardProps) {
           title="Price"
           value={formatNumber(data.price)}
           subtitle={`ATH: ${formatNumber(data.ath_usd)}`}
+          change={data.ath_multiplier}
         />
         <MetricBanner
           title="TVL"

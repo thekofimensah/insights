@@ -23,11 +23,15 @@ export function MetricBanner({ title, value, subtitle, change, historicalData }:
       <h3 className="text-sm font-medium text-gray-500">{title}</h3>
       <div className="mt-1">
         <span className="text-2xl font-semibold">{value}</span>
-        {subtitle && <div className="text-xs text-gray-500 mt-1">{subtitle}</div>}
-        {change && (
-          <span className={`ml-2 text-sm ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {change >= 0 ? '+' : ''}{change}%
-          </span>
+        {(subtitle || change) && (
+          <div className="flex items-center mt-1">
+            {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
+            {change && (
+              <span className={`ml-2 text-lg font-semibold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {change}x
+              </span>
+            )}
+          </div>
         )}
       </div>
       {showChart && historicalData && (

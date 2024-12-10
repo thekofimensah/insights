@@ -46,7 +46,8 @@ function transformCoinData(response: DetailedCoinData): MarketData {
   const devScore = calculateDevScore(response.developer_data);
   const sentimentScore = response.sentiment_votes_up_percentage ?? 50;
   const socialScore = calculateSocialScore(response.community_data);
-  
+  const ath_multiplier = Math.floor(response.market_data.ath.usd / response.market_data.current_price.usd);
+
   const contractAddresses = Object.entries(response.platforms || {})
     .map(([chain, address]) => ({
       chain,
@@ -61,6 +62,7 @@ function transformCoinData(response: DetailedCoinData): MarketData {
     price: response.market_data.current_price.usd,
     tvl: response.market_data.total_volume.usd,
     ath_usd: response.market_data.ath.usd,
+    ath_multiplier,
     contractAddresses,
     trustScore: Math.round((devScore + socialScore) / 2),
     sentimentScore,
