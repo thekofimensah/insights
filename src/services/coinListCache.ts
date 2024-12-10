@@ -1,6 +1,6 @@
 import { fetchCoinList } from './api';
 import type { CoinListItem } from '../types/api';
-import { fetchMarketDataCoinList } from './api/index';
+import { fetchMarketDataCoinList } from './api.ts';
 
 class CoinListCache {
   private coins: CoinListItem[] = [];
@@ -50,15 +50,20 @@ class CoinListCache {
         // Fetch basic coin list
         const basicList = await fetchCoinList();
         console.log('Basic list fetched:', basicList.length, 'coins');
-        
-        // Fetch 1000 coins across 4 pages
-        const pagePromises = Array.from({ length: 1 }, (_, i) => 
-          fetchMarketDataCoinList(i + 1)
-        );
+
+        // Fetch market data for pages with delay
+        const pagePromises = Array.from({ length: 6 }, async (_, i) => {
+          await new Promise(resolve => setTimeout(resolve, 2000 * i)); // 1 second delay between each request
+          console.log(`Fetching market data for page ${i + 1}`);
+          return fetchMarketDataCoinList(i + 1);
+        });
 
         const allPagesData = await Promise.all(pagePromises);
         console.log('Market data fetched:', allPagesData.flat().length, 'coins');
-        
+
+        const coinNames = allPagesData.flat().map(coin => coin.name);
+        console.log('Fetched coin names:', coinNames);
+
         // Flatten all pages and create market cap map
         const marketCapMap = new Map(
           allPagesData.flat().map((coin: any) => [coin.id, coin.market_cap])
@@ -73,6 +78,13 @@ class CoinListCache {
         this.lastUpdate = Date.now();
         this.saveCacheToLocalStorage();
         console.log('Cache updated with', this.coins.length, 'coins');
+        console.log('New cache state:', {
+          coinsCount: this.coins.length,
+          sampleDoc1: this.coins[0],
+          sampleDoc2: this.coins.find(coin => coin.id === "kaia"),
+          lastUpdate: new Date(this.lastUpdate).toISOString(),
+          needsRefresh: this.shouldRefreshCache()
+        });
       } catch (error) {
         console.error('Failed to fetch coin list:', error);
         this.loadCacheFromLocalStorage();

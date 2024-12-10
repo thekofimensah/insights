@@ -12,7 +12,7 @@ const DEFAULT_RETRY_DELAY = (attempt: number) => Math.min(1000 * 2 ** attempt, 3
 
 // Add a simple rate limiter
 let lastRequestTime = 0;
-const RATE_LIMIT_DELAY = 500; // 500 ms seconds between requests
+const RATE_LIMIT_DELAY = 5000; // 5000 ms seconds between requests
 
 async function waitForRateLimit() {
   const now = Date.now();

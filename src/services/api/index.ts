@@ -12,8 +12,7 @@ export async function fetchDetailedCoinData(id: string): Promise<DetailedCoinDat
 
 // This could be good to pull in large amounts of coins and their MC, rather than needing to go one by one
 export async function fetchMarketDataCoinList(page: number): Promise<MarketDataCoinList[]> {
-  const url = `${endpoints.coinMarkets}?page=${page}`;
-  return await fetcher<MarketDataCoinList[]>(url);
+  return await fetcher<MarketDataCoinList[]>(endpoints.coinMarkets(page));
 }
 // {
 //   "id": "bitcoin",

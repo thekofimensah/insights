@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { CoinListItem } from '../types/api';
 import type { DetailedCoinData } from '../types/api';
+import type { MarketDataCoinList } from '../types/api';
 
 // None of these are used directly, they are used in index.ts, this is the definition of the calls and what they do.
 const API_KEY = 'CG-peU4FUU92pAYpWYHQJ5hZ5xN';
@@ -10,12 +11,12 @@ const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     'accept': 'application/json',
-    'x-cg-demo-api-key': API_KEY
+    // 'x-cg-demo-api-key': API_KEY
   }
 });
 // this gives all available coins and their symbols from CG
 export async function fetchCoinList(): Promise<CoinListItem[]> {
-  const response = await api.get<CoinListItem[]>('/coins/list');
+  const response = await api.get<CoinListItem[]>('/coins/list?x_cg_demo_api_key='+API_KEY);
   return response.data;
   // sample data
   // [
@@ -37,9 +38,26 @@ export async function fetchCoinList(): Promise<CoinListItem[]> {
   // ]
 }
 
+export async function fetchMarketDataCoinList(page: number): Promise<MarketDataCoinList[]> {
+  const response = await api.get<MarketDataCoinList[]>(
+    `/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&x_cg_demo_api_key=${API_KEY}`
+  );
+
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.group('Market Data Coin List');
+  //   console.log(`Page ${page} data:`, response.data.slice(0, 3));
+  //   console.log(`Total coins on page ${page}:`, response.data.length);
+  //   console.groupEnd();
+  // }
+
+  return response.data;
+}
+
+
+
 export async function fetchDetailedCoinData(id: string): Promise<DetailedCoinData> {
   const response = await api.get<DetailedCoinData>(
-    `/coins/${id}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true`
+    `/coins/${id}?localization=false&tickers=false&market_data=true&community_data=true&developer_data=true&x_cg_demo_api_key=${API_KEY}`
   );
   
   const data = response.data;
