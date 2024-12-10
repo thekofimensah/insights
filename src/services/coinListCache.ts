@@ -1,5 +1,6 @@
 import { fetchCoinList } from './api';
 import type { CoinListItem } from '../types/api';
+import { fetchMarketDataCoinList } from './api/index';
 
 class CoinListCache {
   private coins: CoinListItem[] = [];
@@ -36,19 +37,27 @@ class CoinListCache {
   }
 
   async getCoinList(): Promise<CoinListItem[]> {
+    console.group('CoinListCache: getCoinList');
+    console.log('Cache state:', {
+      coinsCount: this.coins.length,
+      lastUpdate: new Date(this.lastUpdate).toISOString(),
+      needsRefresh: this.shouldRefreshCache()
+    });
+
     if (this.shouldRefreshCache()) {
       try {
+        console.log('Fetching fresh coin list...');
         // Fetch basic coin list
         const basicList = await fetchCoinList();
+        console.log('Basic list fetched:', basicList.length, 'coins');
         
         // Fetch 1000 coins across 4 pages
-        const pagePromises = Array.from({ length: 4 }, (_, i) => 
-          fetch(
-            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${i + 1}`
-          ).then(res => res.json())
+        const pagePromises = Array.from({ length: 1 }, (_, i) => 
+          fetchMarketDataCoinList(i + 1)
         );
 
         const allPagesData = await Promise.all(pagePromises);
+        console.log('Market data fetched:', allPagesData.flat().length, 'coins');
         
         // Flatten all pages and create market cap map
         const marketCapMap = new Map(
@@ -63,11 +72,13 @@ class CoinListCache {
 
         this.lastUpdate = Date.now();
         this.saveCacheToLocalStorage();
+        console.log('Cache updated with', this.coins.length, 'coins');
       } catch (error) {
         console.error('Failed to fetch coin list:', error);
         this.loadCacheFromLocalStorage();
       }
     }
+    console.groupEnd();
     return this.coins;
   }
 }

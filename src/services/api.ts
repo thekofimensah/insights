@@ -1,8 +1,8 @@
 import axios from 'axios';
 import type { CoinListItem } from '../types/api';
-import { data } from 'autoprefixer';
 import type { DetailedCoinData } from '../types/api';
 
+// None of these are used directly, they are used in index.ts, this is the definition of the calls and what they do.
 const API_KEY = 'CG-peU4FUU92pAYpWYHQJ5hZ5xN';
 const BASE_URL = 'https://api.coingecko.com/api/v3';
 
@@ -14,7 +14,6 @@ const api = axios.create({
   }
 });
 // this gives all available coins and their symbols from CG
-
 export async function fetchCoinList(): Promise<CoinListItem[]> {
   const response = await api.get<CoinListItem[]>('/coins/list');
   return response.data;

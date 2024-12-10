@@ -7,13 +7,17 @@ class ContractAddressCache {
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
   async updateCache(): Promise<void> {
+    console.group('ContractAddressCache: updateCache');
     try {
+      console.log('Fetching contract addresses...');
       const response = await fetch(
         'https://api.coingecko.com/api/v3/coins/list?include_platform=true'
       );
       const coins = await response.json();
+      console.log('Fetched', coins.length, 'coins with platform data');
       
       this.addressMap.clear();
+      let addressCount = 0;
       coins.forEach((coin: any) => {
         if (coin.platforms) {
           Object.entries(coin.platforms).forEach(([chain, address]) => {
@@ -23,6 +27,7 @@ class ContractAddressCache {
                 symbol: coin.symbol,
                 name: coin.name
               });
+              addressCount++;
             }
           });
         }
@@ -30,15 +35,17 @@ class ContractAddressCache {
       
       this.lastUpdate = Date.now();
       this.saveToLocalStorage();
+      console.log('Cache updated with', addressCount, 'contract addresses');
     } catch (error) {
       console.error('Failed to update contract address cache:', error);
       this.loadFromLocalStorage();
     }
+    console.groupEnd();
   }
 
   private saveToLocalStorage(): void {
     try {
-      localStorage.setItem('contractAddressCache', JSON.stringify({
+      localStorage.setItem('', JSON.stringify({
         addresses: Array.from(this.addressMap.entries()),
         lastUpdate: this.lastUpdate
       }));
@@ -61,10 +68,18 @@ class ContractAddressCache {
   }
 
   async findByAddress(address: string): Promise<CoinListItem | undefined> {
+    console.group('ContractAddressCache: findByAddress');
+    console.log('Searching for address:', address);
+    
     if (Date.now() - this.lastUpdate > this.CACHE_DURATION) {
+      console.log('Cache expired, updating...');
       await this.updateCache();
     }
-    return this.addressMap.get(address.toLowerCase());
+    
+    const result = this.addressMap.get(address.toLowerCase());
+    console.log('Search result:', result || 'Not found');
+    console.groupEnd();
+    return result;
   }
 }
 

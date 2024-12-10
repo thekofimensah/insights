@@ -10,6 +10,23 @@ const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const DEFAULT_RETRIES = 2;
 const DEFAULT_RETRY_DELAY = (attempt: number) => Math.min(1000 * 2 ** attempt, 30000);
 
+// Add a simple rate limiter
+let lastRequestTime = 0;
+const RATE_LIMIT_DELAY = 500; // 500 ms seconds between requests
+
+async function waitForRateLimit() {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  
+  if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+    await new Promise(resolve => 
+      setTimeout(resolve, RATE_LIMIT_DELAY - timeSinceLastRequest)
+    );
+  }
+  
+  lastRequestTime = Date.now();
+}
+
 export async function fetcher<T>(
   url: string,
   options: FetchOptions = {}
@@ -25,6 +42,9 @@ export async function fetcher<T>(
   
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // Wait for rate limit before making request
+      await waitForRateLimit();
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeout);
 

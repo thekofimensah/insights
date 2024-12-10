@@ -21,23 +21,28 @@ export function SearchInput({ onSearch }: SearchInputProps) {
         return;
       }
   
+      console.group('SearchInput: searchCoins');
+      console.log('Search query:', query);
       setIsLoading(true);
       try {
         const searchResults: SearchResult[] = [];
         
         // Check if query looks like a contract address
         if (query.length > 30 && query.startsWith('0x')) {
+          console.log('Searching for contract address...');
           const contractResult = await contractAddressCache.findByAddress(query);
           if (contractResult) {
+            console.log('Contract found:', contractResult);
             searchResults.push({
               ...contractResult,
               type: 'contract',
-              market_cap: 0 // We'll need to fetch this separately if needed
+              market_cap: 0
             });
           }
         }
 
         // Search by name and symbol
+        console.log('Searching by name and symbol...');
         const coins = await coinListCache.getCoinList();
         const nameSymbolResults = coins
           .filter(coin => 
@@ -54,11 +59,15 @@ export function SearchInput({ onSearch }: SearchInputProps) {
             market_cap: coin.market_cap
           }));
 
-        setResults([...searchResults, ...nameSymbolResults]);
+        console.log('Name/Symbol matches:', nameSymbolResults);
+        const finalResults = [...searchResults, ...nameSymbolResults];
+        console.log('Final results:', finalResults);
+        setResults(finalResults as SearchResult[]);
       } catch (error) {
         console.error('Search failed:', error);
       } finally {
         setIsLoading(false);
+        console.groupEnd();
       }
     };
   
@@ -67,9 +76,12 @@ export function SearchInput({ onSearch }: SearchInputProps) {
   }, [query]);
 
   const handleResultClick = (result: SearchResult) => {
+    console.group('SearchInput: handleResultClick');
+    console.log('Selected result:', result);
     onSearch(result.id);
     setQuery('');
     setShowResults(false);
+    console.groupEnd();
   };
 
   return (

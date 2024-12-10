@@ -84,7 +84,7 @@ function transformCoinData(response: DetailedCoinData): MarketData {
   };
 }
 
-//This isn't the api request itself, it's just the hook that uses it. The api request is in fetch detailed coin data
+//This isn't the api request itself, it's just the hook that uses it. The api request is in fetchDetailedCoinData 
 export function useCoinData(coinId: string | null) {
   const { data: rawData, error, isLoading } = useApi(
     ['coin', coinId || ''],
