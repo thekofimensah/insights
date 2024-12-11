@@ -16,50 +16,39 @@ export function SearchInput({ onSearch }: SearchInputProps) {
 
   useEffect(() => {
     const searchCoins = async () => {
+      console.group('SearchInput: searchCoins Performance');
+      const startTime = performance.now();
+
       if (query.length < 2) {
         setResults([]);
         return;
       }
-  
-      console.group('SearchInput: searchCoins');
-      console.log('Search query:', query);
+
       setIsLoading(true);
       try {
+        console.time('Total search duration');
         const searchResults: SearchResult[] = [];
         
-        // Check if query looks like a contract address
-        if (query.length > 30) {
-          console.log('Searching for contract address...');
-          const contractResult = await coinListCache.findByAddress(query);
-          if (contractResult) {
-            console.log('Contract found:', contractResult);
-            searchResults.push({
-              id: contractResult.id,
-              symbol: contractResult.symbol,
-              name: contractResult.name,
-              type: 'contract',
-              market_cap: contractResult.market_cap,
-              contract_addresses: contractResult.platforms
-            });
+          if (query.length > 30) {
+            console.log('Searching for contract address...');
+            const contractResult = await coinListCache.findByAddress(query);
+            if (contractResult) {
+              console.log('Contract found:', contractResult);
+              searchResults.push({
+                id: contractResult.id,
+                symbol: contractResult.symbol,
+                name: contractResult.name,
+                type: 'contract',
+                market_cap: contractResult.market_cap,
+                contract_addresses: contractResult.platforms
+              });
           }
         }
-
-        // Only search by name/symbol if we haven't found a contract match
-        // or if the query doesn't look like a contract address
+        
         if (searchResults.length === 0) {
-          console.log('Searching by name and symbol...');
+          console.time('Name/symbol search');
           const coins = await coinListCache.getCoinList();
-          // console.log('Cache for search:', {
-          //   totalCoins: coins.length,
-          //   sampleCoin: coins.find(coin => 
-          //     coin.platforms && 
-          //     Object.values(coin.platforms).includes('0xed11c9bcf69fdd2eefd9fe751bfca32f171d53ae')
-          //   ),
-          //   matchingCoins: coins.filter(c => 
-          //     c.symbol.toLowerCase().includes(query.toLowerCase()) ||
-          //     c.name.toLowerCase().includes(query.toLowerCase())
-          //   ).slice(0, 3)
-          // });
+          console.timeEnd('Name/symbol search');
           const nameSymbolResults = coins
             .filter(coin => 
               coin.symbol.toLowerCase().includes(query.toLowerCase()) ||
@@ -80,12 +69,17 @@ export function SearchInput({ onSearch }: SearchInputProps) {
           searchResults.push(...nameSymbolResults);
         }
 
-        console.log('Final results:', searchResults);
+        console.time('Setting results');
         setResults(searchResults);
+        console.timeEnd('Setting results');
+
       } catch (error) {
         console.error('Search failed:', error);
       } finally {
         setIsLoading(false);
+        const endTime = performance.now();
+        console.log(`Total execution time: ${(endTime - startTime).toFixed(2)}ms`);
+        console.timeEnd('Total search duration');
         console.groupEnd();
       }
     };
@@ -94,14 +88,34 @@ export function SearchInput({ onSearch }: SearchInputProps) {
     return () => clearTimeout(timeoutId);
   }, [query]);
 
-  const handleResultClick = (result: SearchResult) => {
-    console.group('SearchInput: handleResultClick');
-    console.log('Selected result:', result);
-    coinListCache.updateCoinMarketCap(result.id);
-    onSearch(result.id);
-    setQuery('');
-    setShowResults(false);
-    console.groupEnd();
+  const handleResultClick = async (result: SearchResult) => {
+    console.group('SearchInput: handleResultClick Performance');
+    const startTime = performance.now();
+    
+    try {
+      console.time('Total handleResultClick duration');
+      
+      // Measure onSearch call
+      console.time('onSearch duration');
+      await onSearch(result.id);
+      console.timeEnd('onSearch duration');
+      
+      // Measure UI updates
+      console.time('UI updates');
+      setQuery('');
+      setShowResults(false);
+      console.timeEnd('UI updates');
+      
+      // Log total duration
+      const endTime = performance.now();
+      console.log(`Total execution time: ${(endTime - startTime).toFixed(2)}ms`);
+      
+    } catch (error) {
+      console.error('Error in handleResultClick:', error);
+    } finally {
+      console.timeEnd('Total handleResultClick duration');
+      console.groupEnd();
+    }
   };
   
   const formatMarketCap = (marketCap: number): string => {

@@ -71,7 +71,7 @@ export async function fetchMarketDataCoinList(page: number): Promise<MarketDataC
   // Debug output in development
   if (process.env.NODE_ENV === 'development') {
     console.group('Market Data Coin List');
-    console.log(`Page ${page} data:`, data.slice(0, 3));
+    console.log(`Page ${page} data:`);
     console.log(`Total coins on page ${page}:`, data.length);
     console.groupEnd();
   }
