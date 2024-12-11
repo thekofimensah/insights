@@ -46,6 +46,7 @@ export interface SearchResult {
   name: string;
   type: 'id' | 'symbol' | 'name' | 'contract';
   market_cap?: number;
+  contract_addresses?: Record<string, string>;
 }
 
 export interface DetailedCoinData {

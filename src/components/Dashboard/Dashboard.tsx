@@ -10,14 +10,44 @@ export function Dashboard({ data }: DashboardProps) {
     return null;
   }
 
-  const formatNumber = (num: number) => {
-    if (num >= 1e9) {
-      return `$${(num / 1e9).toFixed(2)}B`;
-    } else if (num >= 1e6) {
-      return `$${(num / 1e6).toFixed(2)}M`;
-    } else {
-      return `$${num.toLocaleString()}`;
+  // const formatNumber = (num: number) => {
+  //   if (num >= 1e9) {
+  //     return `$${(num / 1e9).toFixed(2)}B`;
+  //   } else if (num >= 1e6) {
+  //     return `$${(num / 1e6).toFixed(2)}M`;
+  //   } else {
+  //     return `$${num.toLocaleString()}`;
+  //   }
+  // };
+  // const formatBigNumber = (num: number): string => {
+  //   if (!num) return 'N/A';
+    
+  //   if (num >= 1e12) { // Trillion
+  //     return `$${(num / 1e12).toFixed(2)}T`;
+  //   }
+  //   if (num >= 1e9) {
+  //     return `$${(num / 1e9).toFixed(2)}B`;
+  //   }
+  //   if (num >= 1e6) { // Million
+  //     return `$${(num / 1e6).toFixed(2)}M`;
+  //   }
+  //   else {
+  //     return `$${num.toLocaleString()}`;
+  //   }
+  
+  // };
+  const formatNumber = (num: number): string => {
+    if (!num) return 'N/A';
+    if (num < 1e6) {
+      return `$${num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 10
+      })}`;
     }
+    return `$${num.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
   };
 
   return (
@@ -26,6 +56,7 @@ export function Dashboard({ data }: DashboardProps) {
         <MetricBanner
           title="Market Cap"
           value={formatNumber(data.marketCap)}
+          // subtitle={formatBigNumber(data.marketCap)}
         />
         <MetricBanner
           title="Price"
@@ -34,7 +65,7 @@ export function Dashboard({ data }: DashboardProps) {
           change={data.ath_multiplier}
         />
         <MetricBanner
-          title="TVL"
+          title="Total USD Locked (TVL)"
           value={formatNumber(data.tvl)}
         />
         <MetricBanner

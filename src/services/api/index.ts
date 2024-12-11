@@ -2,17 +2,81 @@ import { fetcher } from './fetcher';
 import { endpoints } from './endpoints';
 import type { MarketDataCoinList, CoinListItem, DetailedCoinData } from '../../types/api';
 
+// Gets a basic list of all coins (just id, name, symbol)
 export async function fetchCoinList(): Promise<CoinListItem[]> {
   return await fetcher<CoinListItem[]>(endpoints.coinList);
+  // Sample response:
+  // [
+  //   {
+  //     "id": "0chain",
+  //     "symbol": "zcn",
+  //     "name": "Zus",
+  //     "platforms": {
+  //       "ethereum": "0xb9ef770b6a5e12e45983c5d80545258aa38f3b78",
+  //       "polygon-pos": "0x8bb30e0e67b11b978a5040144c410e1ccddcba30"
+  //     }
+  //   }
+  // ]
 }
 
+// Gets detailed info about one specific coin (like Bitcoin)
 export async function fetchDetailedCoinData(id: string): Promise<DetailedCoinData> {
-  return await fetcher<DetailedCoinData>(endpoints.coinData(id));
+  const data = await fetcher<DetailedCoinData>(endpoints.coinData(id));
+  
+  // Extract contract addresses from platforms
+  const contractAddresses = Object.entries(data.platforms || {}).map(([chain, address]) => ({
+    chain,
+    address
+  }));
+
+  // Extract relevant USD-only market data
+  const marketData = {
+    current_price_usd: data.market_data?.current_price?.usd,
+    market_cap_usd: data.market_data?.market_cap?.usd,
+    total_volume_usd: data.market_data?.total_volume?.usd,
+    ath_usd: data.market_data?.ath?.usd,
+    name: data.id,
+    contractAddresses
+  };
+
+  // Extract social and community data
+  const socialData = {
+    twitter_handle: data.links?.twitter_screen_name,
+    telegram_channel: data.links?.telegram_channel_identifier,
+    subreddit_url: data.links?.subreddit_url,
+    official_forum: data.links?.official_forum_url?.[0],
+    whitepaper: data.links?.whitepaper,
+    watchlist_users: data.watchlist_portfolio_users,
+    sentiment_votes_up: data.sentiment_votes_up_percentage,
+    sentiment_votes_down: data.sentiment_votes_down_percentage,
+  };
+
+  // Debug output in development
+  if (process.env.NODE_ENV === 'development') {
+    console.group('Detailed Coin Data');
+    console.log('Market Data:', marketData);
+    console.log('Social Data:', socialData);
+    console.log('Raw Response:', data);
+    console.groupEnd();
+  }
+
+  return data;
 }
 
-// This could be good to pull in large amounts of coins and their MC, rather than needing to go one by one
+// Gets a page of coins with their market data (price, market cap, etc.)
+// Each page has 250 coins, page 1 = first 250 coins, page 2 = next 250, etc.
 export async function fetchMarketDataCoinList(page: number): Promise<MarketDataCoinList[]> {
-  return await fetcher<MarketDataCoinList[]>(endpoints.coinMarkets(page));
+  const data = await fetcher<MarketDataCoinList[]>(endpoints.coinMarkets(page));
+
+  // Debug output in development
+  if (process.env.NODE_ENV === 'development') {
+    console.group('Market Data Coin List');
+    console.log(`Page ${page} data:`, data.slice(0, 3));
+    console.log(`Total coins on page ${page}:`, data.length);
+    console.groupEnd();
+  }
+
+  return data;
 }
 // {
 //   "id": "bitcoin",

@@ -1,5 +1,5 @@
 import { useApi } from './useApi';
-import { fetchDetailedCoinData } from '../services/api';
+import { fetchDetailedCoinData } from '../services/api/index';
 import type { MarketData } from '../types';
 import type { DetailedCoinData } from '../types/api';
 

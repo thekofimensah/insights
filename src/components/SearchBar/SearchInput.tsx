@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { coinListCache } from '../../services/coinListCache';
-import { contractAddressCache } from '../../services/contractAddressCache';
+// import { contractAddressCache } from '../../services/contractAddressCache';
 import type { SearchResult } from '../../types/api';
 
 interface SearchInputProps {
@@ -28,41 +28,60 @@ export function SearchInput({ onSearch }: SearchInputProps) {
         const searchResults: SearchResult[] = [];
         
         // Check if query looks like a contract address
-        if (query.length > 30 && query.startsWith('0x')) {
+        if (query.length > 30) {
           console.log('Searching for contract address...');
-          const contractResult = await contractAddressCache.findByAddress(query);
+          const contractResult = await coinListCache.findByAddress(query);
           if (contractResult) {
             console.log('Contract found:', contractResult);
             searchResults.push({
-              ...contractResult,
+              id: contractResult.id,
+              symbol: contractResult.symbol,
+              name: contractResult.name,
               type: 'contract',
-              market_cap: 0
+              market_cap: contractResult.market_cap,
+              contract_addresses: contractResult.platforms
             });
           }
         }
 
-        // Search by name and symbol
-        console.log('Searching by name and symbol...');
-        const coins = await coinListCache.getCoinList();
-        const nameSymbolResults = coins
-          .filter(coin => 
-            coin.symbol.toLowerCase().includes(query.toLowerCase()) ||
-            coin.name.toLowerCase().includes(query.toLowerCase())
-          )
-          .sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0))
-          .slice(0, 10)
-          .map(coin => ({
-            id: coin.id,
-            symbol: coin.symbol,
-            name: coin.name,
-            type: coin.symbol.toLowerCase().includes(query.toLowerCase()) ? 'symbol' : 'name',
-            market_cap: coin.market_cap
-          }));
+        // Only search by name/symbol if we haven't found a contract match
+        // or if the query doesn't look like a contract address
+        if (searchResults.length === 0) {
+          console.log('Searching by name and symbol...');
+          const coins = await coinListCache.getCoinList();
+          // console.log('Cache for search:', {
+          //   totalCoins: coins.length,
+          //   sampleCoin: coins.find(coin => 
+          //     coin.platforms && 
+          //     Object.values(coin.platforms).includes('0xed11c9bcf69fdd2eefd9fe751bfca32f171d53ae')
+          //   ),
+          //   matchingCoins: coins.filter(c => 
+          //     c.symbol.toLowerCase().includes(query.toLowerCase()) ||
+          //     c.name.toLowerCase().includes(query.toLowerCase())
+          //   ).slice(0, 3)
+          // });
+          const nameSymbolResults = coins
+            .filter(coin => 
+              coin.symbol.toLowerCase().includes(query.toLowerCase()) ||
+              coin.name.toLowerCase().includes(query.toLowerCase())
+            )
+            .sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0))
+            .slice(0, 10)
+            .map(coin => ({
+              id: coin.id,
+              symbol: coin.symbol,
+              name: coin.name,
+              type: coin.symbol.toLowerCase().includes(query.toLowerCase()) ? 'symbol' : 'name',
+              market_cap: coin.market_cap,
+              contract_addresses: coin.platforms
+            }));
 
-        console.log('Name/Symbol matches:', nameSymbolResults);
-        const finalResults = [...searchResults, ...nameSymbolResults];
-        console.log('Final results:', finalResults);
-        setResults(finalResults as SearchResult[]);
+          console.log('Name/Symbol matches:', nameSymbolResults);
+          searchResults.push(...nameSymbolResults);
+        }
+
+        console.log('Final results:', searchResults);
+        setResults(searchResults);
       } catch (error) {
         console.error('Search failed:', error);
       } finally {
@@ -78,10 +97,29 @@ export function SearchInput({ onSearch }: SearchInputProps) {
   const handleResultClick = (result: SearchResult) => {
     console.group('SearchInput: handleResultClick');
     console.log('Selected result:', result);
+    coinListCache.updateCoinMarketCap(result.id);
     onSearch(result.id);
     setQuery('');
     setShowResults(false);
     console.groupEnd();
+  };
+  
+  const formatMarketCap = (marketCap: number): string => {
+    if (!marketCap) return 'N/A';
+    
+    if (marketCap >= 1e12) { // Trillion
+      return `$${(marketCap / 1e12).toFixed(1)}T`;
+    }
+    if (marketCap >= 1e9) { // Billion
+      return `$${(marketCap / 1e9).toFixed(1)}B`;
+    }
+    if (marketCap >= 1e6) { // Million
+      return `$${(marketCap / 1e6).toFixed(1)}M`;
+    }
+    if (marketCap >= 1e3) { // Thousand
+      return `$${(marketCap / 1e3).toFixed(0)}K`;
+    }
+    return `$${marketCap.toFixed(0)}`;
   };
 
   return (
@@ -119,7 +157,7 @@ export function SearchInput({ onSearch }: SearchInputProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">
-                  {result.market_cap ? `$${(result.market_cap / 1e9).toFixed(1)}B` : 'N/A'}
+                  {result.market_cap ? `${formatMarketCap(result.market_cap)}` : 'N/A'}
                 </span>
                 <span className="text-xs text-gray-400 capitalize">{result.type}</span>
               </div>
