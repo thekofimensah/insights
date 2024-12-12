@@ -91,3 +91,34 @@ export interface DetailedCoinData {
     pull_request_contributors: number;
   };
 }
+
+// Add new DexScreener interfaces
+export interface DexScreenerResponse {
+  schemaVersion: string;
+  pairs: DexScreenerPair[] | null;
+}
+
+export interface DexScreenerPair {
+  chainId: string;
+  dexId: string;
+  url: string;
+  pairAddress: string;
+  baseToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  priceUsd: string;
+  liquidity: {
+    usd: number;
+    base: number;
+    quote: number;
+  };
+  marketCap: number;
+  fdv: number;
+}

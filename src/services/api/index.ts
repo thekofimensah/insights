@@ -1,6 +1,6 @@
 import { fetcher } from './fetcher';
 import { endpoints } from './endpoints';
-import type { MarketDataCoinList, CoinListItem, DetailedCoinData } from '../../types/api';
+import type { MarketDataCoinList, CoinListItem, DetailedCoinData, DexScreenerResponse } from '../../types/api';
 
 // Gets a basic list of all coins (just id, name, symbol)
 export async function fetchCoinList(): Promise<CoinListItem[]> {
@@ -19,6 +19,18 @@ export async function fetchCoinList(): Promise<CoinListItem[]> {
   // ]
 }
 
+// New function to fetch token data in batches
+export async function fetchDexScreenerTokens(addresses: string[]): Promise<DexScreenerResponse> {
+  if (!addresses.length) return { schemaVersion: "1.0", pairs: [] };
+  
+  // Ensure we don't exceed 30 addresses per request
+  if (addresses.length > 30) {
+    console.warn('Too many addresses, truncating to 30');
+    addresses = addresses.slice(0, 30);
+  }
+  
+  return await fetcher<DexScreenerResponse>(endpoints.dexScreener(addresses));
+}
 // Gets detailed info about one specific coin (like Bitcoin)
 export async function fetchDetailedCoinData(id: string): Promise<DetailedCoinData> {
   const data = await fetcher<DetailedCoinData>(endpoints.coinData(id));

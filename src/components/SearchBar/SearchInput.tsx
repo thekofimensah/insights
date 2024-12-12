@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { coinListCache } from '../../services/coinListCache';
 // import { contractAddressCache } from '../../services/contractAddressCache';
 import type { SearchResult } from '../../types/api';
+import DataEnhancer from '../../services/dataEnhancer';
+import { fallbackLookup } from '../../services/fallbackLookup';
 
 interface SearchInputProps {
   onSearch: (coinId: string) => void;
@@ -93,27 +95,45 @@ export function SearchInput({ onSearch }: SearchInputProps) {
     const startTime = performance.now();
     
     try {
-      console.time('Total handleResultClick duration');
+      let updatedData = null;
       
-      // Measure onSearch call
-      console.time('onSearch duration');
+      // Check if coin needs fallback data
+      if (!result.market_cap || !result.contract_addresses || Object.keys(result.contract_addresses).length === 0) {
+        console.log('Fetching missing data for:', result.id);
+        const [updatedCoin] = await fallbackLookup.lookupMissingDataBatch([{
+          id: result.id,
+          symbol: result.symbol,
+          name: result.name,
+          market_cap: result.market_cap,
+          platforms: result.contract_addresses
+        }]);
+        
+        // Update the coin in cache
+        const coins = await coinListCache.getCoinList();
+        const coinIndex = coins.findIndex(c => c.id === result.id);
+        if (coinIndex !== -1) {
+          coins[coinIndex] = updatedCoin;
+          coinListCache.saveCacheToLocalStorage();
+          updatedData = updatedCoin;
+        }
+      }
+
+      // Pass the updated data to DataEnhancer if we have it
+      if (updatedData) {
+        await DataEnhancer.updateCoinData(result.id, updatedData);
+      } else {
+        await DataEnhancer.updateCoinData(result.id);
+      }
+      
       await onSearch(result.id);
-      console.timeEnd('onSearch duration');
-      
-      // Measure UI updates
-      console.time('UI updates');
       setQuery('');
       setShowResults(false);
-      console.timeEnd('UI updates');
       
-      // Log total duration
       const endTime = performance.now();
       console.log(`Total execution time: ${(endTime - startTime).toFixed(2)}ms`);
-      
     } catch (error) {
       console.error('Error in handleResultClick:', error);
     } finally {
-      console.timeEnd('Total handleResultClick duration');
       console.groupEnd();
     }
   };

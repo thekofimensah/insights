@@ -1,6 +1,8 @@
 // import { fetchCoinList } from './api/index';
 import type { CoinListItem } from '../types/api';
 import { fetchDetailedCoinData, fetchCoinList, fetchMarketDataCoinList } from './api/index';
+import { fallbackLookup } from './fallbackLookup';
+import DataEnhancer from './dataEnhancer';
 
 class CoinListCache {
   // List of all coins we know about
@@ -61,31 +63,23 @@ class CoinListCache {
 
     if (this.shouldRefreshCache()) {
       try {
-        console.time('Total refresh duration');
         
         // Fetch basic list
-        console.time('Basic list fetch');
         const basicList = await fetchCoinList();
-        console.timeEnd('Basic list fetch');
         console.log('Basic list fetched:', basicList.length, 'coins');
 
         // Fetch market data
         console.time('Market data fetch');
-        const pagePromises = Array.from({ length: 2 }, async (_, i) => {
-          console.time(`Page ${i + 1} fetch`);
-          console.log(`Fetching market data for page ${i + 1}`);
-          const result = await fetchMarketDataCoinList(i + 1);
-          console.timeEnd(`Page ${i + 1} fetch`);
-          return result;
-        });
+        const pagePromises = Array.from({ length: 2 }, (_, i) => 
+          fetchMarketDataCoinList(i + 1)  // Remove the async wrapper to run in parallel
+        );
 
         const allPagesData = await Promise.all(pagePromises);
         const marketData = allPagesData.flat();
-        console.timeEnd('Market data fetch');
         console.log('Market data fetched:', marketData.length, 'coins');
+        console.timeEnd('Market data fetch');
 
         // Process data
-        console.time('Data processing');
         const marketCapMap = new Map(
           marketData.map(coin => [coin.id, coin.market_cap])
         );
@@ -96,31 +90,14 @@ class CoinListCache {
           name: coin.name,
           market_cap: marketCapMap.get(coin.id) ?? 0,
           platforms: coin.platforms
-     
         }));
 
         this.coins.sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
-        console.timeEnd('Data processing');
-
-        // Save cache
-        console.time('Cache save');
         this.lastUpdate = Date.now();
         this.saveCacheToLocalStorage();
-        console.timeEnd('Cache save');
-        
-        console.log('Cache updated with', this.coins.length, 'coins');
-        console.log('Sample entries:', {
-          topCoin: this.coins[0],
-          randomCoin: this.coins.find(c => c.platforms && c.platforms.length > 0),
-          lastUpdate: new Date(this.lastUpdate).toISOString()
-        });
-
-        console.timeEnd('Total refresh duration');
       } catch (error) {
         console.error('Failed to fetch coin list:', error);
-        console.time('Loading from localStorage');
         this.loadCacheFromLocalStorage();
-        console.timeEnd('Loading from localStorage');
       }
     }
 
@@ -146,29 +123,17 @@ class CoinListCache {
   }
 
   // New method to update market cap for a specific coin
-  async updateCoinMarketCap(coinId: string): Promise<void> {
-    try {
-      // Get detailed data for the clicked coin
-      const coinData = await fetchDetailedCoinData(coinId);
-      const marketCap = coinData.market_data?.market_cap?.usd || 0;
-
-      // Update the coin in our cache
-      const coinIndex = this.coins.findIndex(coin => coin.id === coinId);
-      if (coinIndex !== -1) {
-        this.coins[coinIndex].market_cap = marketCap;
-        
-        // Re-sort the list if market cap changed
-        this.coins.sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
-        
-        // Save to localStorage
-        this.saveCacheToLocalStorage();
-        
-        console.log(`Updated market cap for ${coinId}:`, marketCap);
-      }
-    } catch (error) {
-      console.error(`Failed to update market cap for ${coinId}:`, error);
-    }
-  }
+  // async updateCoinMarketCap(coinId: string): Promise<void> {
+  //   const updatedCoin = await DataEnhancer.updateCoinData(coinId);
+  //   if (updatedCoin) {
+  //     const coinIndex = this.coins.findIndex(coin => coin.id === coinId);
+  //     if (coinIndex !== -1) {
+  //       this.coins[coinIndex] = updatedCoin;
+  //       this.coins.sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+  //       this.saveCacheToLocalStorage();
+  //     }
+  //   }
+  // }
 
   // private checkCacheSize(): void {
   //   try {
