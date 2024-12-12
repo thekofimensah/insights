@@ -1,6 +1,8 @@
 import { MarketCapDisplay } from './MarketCapDisplay';
 import { MetricBanner } from './MetricBanner';
+import { SocialLinks } from './SocialLinks';
 import type { MarketData } from '../../types';
+import { formatNumber } from '../../utils/formatters';
 
 interface DashboardProps {
   data: MarketData | null;
@@ -11,22 +13,13 @@ export function Dashboard({ data }: DashboardProps) {
     return null;
   }
 
-  const formatNumber = (num: number): string => {
-    if (!num) return 'N/A';
-    if (num < 1e6) {
-      return `$${num.toLocaleString('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 10
-      })}`;
-    }
-    return `$${num.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    })}`;
-  };
-
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">{data.name}</h2>
+        <SocialLinks socialData={data.debug.socialData} />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <MarketCapDisplay coinId={data.raw_data} />
         <MetricBanner
