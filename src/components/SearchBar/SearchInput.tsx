@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { coinListCache } from '../../services/coinListCache';
-// import { contractAddressCache } from '../../services/contractAddressCache';
 import type { SearchResult } from '../../types/api';
 import DataEnhancer from '../../services/dataEnhancer';
 import { fallbackLookup } from '../../services/fallbackLookup';
+import { fetchDexScreenerTokens } from '../../services/api';
 
 interface SearchInputProps {
   onSearch: (coinId: string) => void;
@@ -18,9 +18,6 @@ export function SearchInput({ onSearch }: SearchInputProps) {
 
   useEffect(() => {
     const searchCoins = async () => {
-      console.group('SearchInput: searchCoins Performance');
-      const startTime = performance.now();
-
       if (query.length < 2) {
         setResults([]);
         return;
@@ -28,29 +25,24 @@ export function SearchInput({ onSearch }: SearchInputProps) {
 
       setIsLoading(true);
       try {
-        console.time('Total search duration');
         const searchResults: SearchResult[] = [];
         
-          if (query.length > 30) {
-            console.log('Searching for contract address...');
-            const contractResult = await coinListCache.findByAddress(query);
-            if (contractResult) {
-              console.log('Contract found:', contractResult);
-              searchResults.push({
-                id: contractResult.id,
-                symbol: contractResult.symbol,
-                name: contractResult.name,
-                type: 'contract',
-                market_cap: contractResult.market_cap,
-                contract_addresses: contractResult.platforms
-              });
+        if (query.length > 30) {
+          const contractResult = await coinListCache.findByAddress(query);
+          if (contractResult) {
+            searchResults.push({
+              id: contractResult.id,
+              symbol: contractResult.symbol,
+              name: contractResult.name,
+              type: 'contract',
+              market_cap: contractResult.market_cap,
+              contract_addresses: contractResult.platforms
+            });
           }
         }
         
         if (searchResults.length === 0) {
-          console.time('Name/symbol search');
           const coins = await coinListCache.getCoinList();
-          console.timeEnd('Name/symbol search');
           const nameSymbolResults = coins
             .filter(coin => 
               coin.symbol.toLowerCase().includes(query.toLowerCase()) ||
@@ -67,22 +59,14 @@ export function SearchInput({ onSearch }: SearchInputProps) {
               contract_addresses: coin.platforms
             }));
 
-          console.log('Name/Symbol matches:', nameSymbolResults);
           searchResults.push(...nameSymbolResults);
         }
 
-        console.time('Setting results');
         setResults(searchResults);
-        console.timeEnd('Setting results');
-
       } catch (error) {
         console.error('Search failed:', error);
       } finally {
         setIsLoading(false);
-        const endTime = performance.now();
-        console.log(`Total execution time: ${(endTime - startTime).toFixed(2)}ms`);
-        console.timeEnd('Total search duration');
-        console.groupEnd();
       }
     };
   
@@ -91,15 +75,32 @@ export function SearchInput({ onSearch }: SearchInputProps) {
   }, [query]);
 
   const handleResultClick = async (result: SearchResult) => {
-    console.group('SearchInput: handleResultClick Performance');
-    const startTime = performance.now();
-    
     try {
       let updatedData = null;
       
-      // Check if coin needs fallback data
-      if (!result.market_cap || !result.contract_addresses || Object.keys(result.contract_addresses).length === 0) {
-        console.log('Fetching missing data for:', result.id);
+      // Check if we need to fetch market cap from DexScreener
+      if (!result.market_cap && result.contract_addresses) {
+        const addresses = Object.values(result.contract_addresses).filter(Boolean);
+        if (addresses.length > 0) {
+          const dexData = await fetchDexScreenerTokens(addresses);
+          if (dexData.pairs && dexData.pairs.length > 0) {
+            const marketCap = dexData.pairs[0].marketCap;
+            if (marketCap) {
+              result.market_cap = marketCap;
+              // Update cache with new market cap
+              const coins = await coinListCache.getCoinList();
+              const coinIndex = coins.findIndex(c => c.id === result.id);
+              if (coinIndex !== -1) {
+                coins[coinIndex].market_cap = marketCap;
+                await coinListCache.saveCacheToLocalStorage();
+              }
+            }
+          }
+        }
+      }
+
+      // If still no market cap, try fallback lookup
+      if (!result.market_cap) {
         const [updatedCoin] = await fallbackLookup.lookupMissingDataBatch([{
           id: result.id,
           symbol: result.symbol,
@@ -107,18 +108,9 @@ export function SearchInput({ onSearch }: SearchInputProps) {
           market_cap: result.market_cap,
           platforms: result.contract_addresses
         }]);
-        
-        // Update the coin in cache
-        const coins = await coinListCache.getCoinList();
-        const coinIndex = coins.findIndex(c => c.id === result.id);
-        if (coinIndex !== -1) {
-          coins[coinIndex] = updatedCoin;
-          coinListCache.saveCacheToLocalStorage();
-          updatedData = updatedCoin;
-        }
+        updatedData = updatedCoin;
       }
 
-      // Pass the updated data to DataEnhancer if we have it
       if (updatedData) {
         await DataEnhancer.updateCoinData(result.id, updatedData);
       } else {
@@ -128,31 +120,18 @@ export function SearchInput({ onSearch }: SearchInputProps) {
       await onSearch(result.id);
       setQuery('');
       setShowResults(false);
-      
-      const endTime = performance.now();
-      console.log(`Total execution time: ${(endTime - startTime).toFixed(2)}ms`);
     } catch (error) {
       console.error('Error in handleResultClick:', error);
-    } finally {
-      console.groupEnd();
     }
   };
   
   const formatMarketCap = (marketCap: number): string => {
     if (!marketCap) return 'N/A';
     
-    if (marketCap >= 1e12) { // Trillion
-      return `$${(marketCap / 1e12).toFixed(1)}T`;
-    }
-    if (marketCap >= 1e9) { // Billion
-      return `$${(marketCap / 1e9).toFixed(1)}B`;
-    }
-    if (marketCap >= 1e6) { // Million
-      return `$${(marketCap / 1e6).toFixed(1)}M`;
-    }
-    if (marketCap >= 1e3) { // Thousand
-      return `$${(marketCap / 1e3).toFixed(0)}K`;
-    }
+    if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(1)}T`;
+    if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(1)}B`;
+    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(1)}M`;
+    if (marketCap >= 1e3) return `$${(marketCap / 1e3).toFixed(0)}K`;
     return `$${marketCap.toFixed(0)}`;
   };
 
@@ -191,7 +170,7 @@ export function SearchInput({ onSearch }: SearchInputProps) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">
-                  {result.market_cap ? `${formatMarketCap(result.market_cap)}` : 'N/A'}
+                  {formatMarketCap(result.market_cap || 0)}
                 </span>
                 <span className="text-xs text-gray-400 capitalize">{result.type}</span>
               </div>

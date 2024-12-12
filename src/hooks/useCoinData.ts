@@ -2,9 +2,9 @@ import { useApi } from './useApi';
 import { fetchDetailedCoinData } from '../services/api/index';
 import type { MarketData } from '../types';
 import type { DetailedCoinData } from '../types/api';
+import { coinListCache } from '../services/coinListCache';
+import { useEffect } from 'react';
 
-
-//This entire file just takes the function on the bottom, transforms it, and then manipulates it with the rest of the functions. Read from the bottom up.
 function calculateDevScore(devData: DetailedCoinData['developer_data']): number {
   const metrics = {
     forks: normalize(devData?.forks ?? 0, 0, 50000),
@@ -41,7 +41,6 @@ function normalize(value: number, min: number, max: number): number {
   return Math.min(Math.max((value - min) / (max - min), 0), 1);
 }
 
-// This simply takes a response and transforms it into a MarketData object. useCoinData is using it just to clean it up
 function transformCoinData(response: DetailedCoinData): MarketData {
   const devScore = calculateDevScore(response.developer_data);
   const sentimentScore = response.sentiment_votes_up_percentage ?? 50;
@@ -84,9 +83,8 @@ function transformCoinData(response: DetailedCoinData): MarketData {
   };
 }
 
-//This isn't the api request itself, it's just the hook that uses it. The api request is in fetchDetailedCoinData 
 export function useCoinData(coinId: string | null) {
-  const { data: rawData, error, isLoading } = useApi(
+  const { data: rawData, error, isLoading, refetch } = useApi(
     ['coin', coinId || ''],
     () => (coinId ? fetchDetailedCoinData(coinId) : Promise.reject('No coin ID')),
     {
@@ -95,6 +93,28 @@ export function useCoinData(coinId: string | null) {
       cacheTime: 1000 * 60 * 30, // 30 minutes
     }
   );
+
+  // Subscribe to cache updates
+  useEffect(() => {
+    if (!coinId) return;
+
+    const checkCacheAndUpdate = async () => {
+      const coins = await coinListCache.getCoinList();
+      const cachedCoin = coins.find(coin => coin.id === coinId);
+      
+      if (cachedCoin && cachedCoin.market_cap && (!rawData || cachedCoin.market_cap !== rawData.market_data.market_cap.usd)) {
+        refetch();
+      }
+    };
+
+    // Check immediately
+    checkCacheAndUpdate();
+
+    // Set up interval for periodic checks
+    const intervalId = setInterval(checkCacheAndUpdate, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [coinId, rawData, refetch]);
 
   const data = rawData ? transformCoinData(rawData) : null;
 
