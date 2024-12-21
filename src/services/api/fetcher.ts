@@ -7,8 +7,22 @@ interface FetchOptions extends RequestInit {
 }
 
 const DEFAULT_TIMEOUT = 10000; // 10 seconds
-const DEFAULT_RETRIES = 2;
-const DEFAULT_RETRY_DELAY = (attempt: number) => Math.min(1000 * 2 ** attempt, 30000);
+const DEFAULT_RETRIES = 5; 
+
+// Exponential backoff with jitter
+const DEFAULT_RETRY_DELAY = (attempt: number) => {
+  const baseDelay = 1000; // 1 second
+  const maxDelay = 40000; // 40 seconds
+  
+  // Calculate exponential backoff: 1s, 2s, 4s, 8s, etc.
+  const expDelay = baseDelay * Math.pow(2, attempt);
+  
+  // Add random jitter (±20% of delay)
+  const jitter = expDelay * (0.8 + Math.random() * 0.4);
+  
+  // Cap at maxDelay
+  return Math.min(jitter, maxDelay);
+};
 
 export async function fetcher<T>(
   url: string,

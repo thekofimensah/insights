@@ -1,5 +1,8 @@
+import { MarketCapDisplay } from './MarketCapDisplay';
 import { MetricBanner } from './MetricBanner';
+// import { SocialLinks } from './SocialLinks';
 import type { MarketData } from '../../types';
+import { formatNumber } from '../../utils/formatters';
 
 interface DashboardProps {
   data: MarketData | null;
@@ -9,24 +12,17 @@ export function Dashboard({ data }: DashboardProps) {
   if (!data) {
     return null;
   }
-
-  const formatNumber = (num: number) => {
-    if (num >= 1e9) {
-      return `$${(num / 1e9).toFixed(2)}B`;
-    } else if (num >= 1e6) {
-      return `$${(num / 1e6).toFixed(2)}M`;
-    } else {
-      return `$${num.toLocaleString()}`;
-    }
-  };
-
+  console.group('Dashboard Data');
+  console.log('Full data object:', data);
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">{data.name}</h2>
+        {/* <SocialLinks socialData={data.debug.socialData} /> */}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <MetricBanner
-          title="Market Cap"
-          value={formatNumber(data.marketCap)}
-        />
+        <MarketCapDisplay coinId={data.raw_data} />
         <MetricBanner
           title="Price"
           value={formatNumber(data.price)}
@@ -34,7 +30,7 @@ export function Dashboard({ data }: DashboardProps) {
           change={data.ath_multiplier}
         />
         <MetricBanner
-          title="TVL"
+          title="Total USD Locked (TVL)"
           value={formatNumber(data.tvl)}
         />
         <MetricBanner
@@ -44,9 +40,8 @@ export function Dashboard({ data }: DashboardProps) {
         <MetricBanner
           title="Sentiment"
           value={`${data.sentimentScore.toFixed(1)}%`}
-          // value={`${data.raw_data}`}
         />
       </div>
     </div>
-  );
+  )
 }

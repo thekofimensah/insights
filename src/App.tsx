@@ -6,7 +6,7 @@ import { TwitterFeed } from './components/SocialFeed/TwitterFeed';
 import { NewsFeed } from './components/News/NewsFeed';
 import { useCoinData } from './hooks/useCoinData';
 
-function App() {
+export function App() {
   const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
   const { data, isLoading, error } = useCoinData(selectedCoinId);
 

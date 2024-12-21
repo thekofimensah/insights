@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import type { APIError } from '../services/api/errors.ts';
+import { coinQueries } from '../lib/supabase/queries/coins'
 
 interface UseApiOptions<T> {
   onSuccess?: (data: T) => void;

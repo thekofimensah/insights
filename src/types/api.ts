@@ -2,16 +2,51 @@ export interface CoinListItem {
   id: string;
   symbol: string;
   name: string;
+  platforms: Record<string, string>; // e.g., { ethereum: "0x...", bsc: "0x..." }
   market_cap?: number;
-  platforms?: Record<string, string>;
 }
 
+export interface MarketDataCoinList {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  fully_diluted_valuation: number;
+  total_volume: number;
+  high_24h: number;
+  low_24h: number;
+  price_change_24h: number;
+  price_change_percentage_24h: number;
+  market_cap_change_24h: number;
+  market_cap_change_percentage_24h: number;
+  circulating_supply: number;
+  total_supply: number;
+  max_supply: number;
+  ath: number;
+  ath_change_percentage: number;
+  ath_date: string;
+  atl: number;
+  atl_change_percentage: number;
+  atl_date: string;
+  last_updated: string;
+  price_change_percentage_14d_in_currency: number;
+  price_change_percentage_1h_in_currency: number;
+  price_change_percentage_1y_in_currency: number;
+  price_change_percentage_200d_in_currency: number;
+  price_change_percentage_24h_in_currency: number;
+  price_change_percentage_30d_in_currency: number;
+  price_change_percentage_7d_in_currency: number;
+}
 export interface SearchResult {
   id: string;
   symbol: string;
   name: string;
   type: 'id' | 'symbol' | 'name' | 'contract';
   market_cap?: number;
+  contract_addresses?: Record<string, string>;
 }
 
 export interface DetailedCoinData {
@@ -33,6 +68,7 @@ export interface DetailedCoinData {
     announcement_url: string[];
     chat_url: string[];
     whitepaper: string;
+    official_forum_url: string[];
   };
   community_data: {
     twitter_followers: number;
@@ -54,4 +90,35 @@ export interface DetailedCoinData {
     pull_requests_merged: number;
     pull_request_contributors: number;
   };
+}
+
+// Add new DexScreener interfaces
+export interface DexScreenerResponse {
+  schemaVersion: string;
+  pairs: DexScreenerPair[] | null;
+}
+
+export interface DexScreenerPair {
+  chainId: string;
+  dexId: string;
+  url: string;
+  pairAddress: string;
+  baseToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  priceUsd: string;
+  liquidity: {
+    usd: number;
+    base: number;
+    quote: number;
+  };
+  marketCap: number;
+  fdv: number;
 }

@@ -1,75 +1,62 @@
-import { fetchCoinList } from './api';
-import type { CoinListItem } from '../types/api';
+import { debugCache } from '@/utils/debug'
+import type { CoinListItem } from '@/types/api'
+import { fetchCoinList, fetchMarketDataCoinList } from './api'
 
 class CoinListCache {
-  private coins: CoinListItem[] = [];
-  private lastUpdate: number = 0;
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private coins: CoinListItem[] = []
+  private lastUpdate: number = 0
+  private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
   private shouldRefreshCache(): boolean {
-    return this.coins.length === 0 || 
-           Date.now() - this.lastUpdate > this.CACHE_DURATION;
-  }
-
-  private saveCacheToLocalStorage(): void {
-    try {
-      localStorage.setItem('coinList', JSON.stringify({
-        coins: this.coins,
-        lastUpdate: this.lastUpdate
-      }));
-    } catch (error) {
-      console.error('Failed to save cache:', error);
-    }
-  }
-
-  private loadCacheFromLocalStorage(): void {
-    try {
-      const cached = localStorage.getItem('coinList');
-      if (cached) {
-        const { coins, lastUpdate } = JSON.parse(cached);
-        this.coins = coins;
-        this.lastUpdate = lastUpdate;
-      }
-    } catch (error) {
-      console.error('Failed to load cache:', error);
-    }
+    return (
+      this.coins.length === 0 || 
+      Date.now() - this.lastUpdate > this.CACHE_DURATION
+    )
   }
 
   async getCoinList(): Promise<CoinListItem[]> {
+    debugCache('Getting coin list from cache')
+    
     if (this.shouldRefreshCache()) {
+      debugCache('Cache needs refresh')
       try {
-        // Fetch basic coin list
-        const basicList = await fetchCoinList();
-        
-        // Fetch 1000 coins across 4 pages
-        const pagePromises = Array.from({ length: 4 }, (_, i) => 
-          fetch(
-            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${i + 1}`
-          ).then(res => res.json())
-        );
+        // Fetch basic list with contract addresses
+        const basicList = await fetchCoinList()
+        debugCache('Fetched basic list: %d coins', basicList.length)
 
-        const allPagesData = await Promise.all(pagePromises);
-        
-        // Flatten all pages and create market cap map
+        // Fetch market data for top coins
+        const marketData = await fetchMarketDataCoinList(1)
+        debugCache('Fetched market data: %d coins', marketData.length)
+
+        // Create market cap lookup
         const marketCapMap = new Map(
-          allPagesData.flat().map((coin: any) => [coin.id, coin.market_cap])
-        );
+          marketData.map(coin => [coin.id, coin.market_cap])
+        )
 
-        // Merge market cap data with basic list
+        // Combine data
         this.coins = basicList.map(coin => ({
           ...coin,
-          market_cap: marketCapMap.get(coin.id) ?? 0
-        }));
+          market_cap: marketCapMap.get(coin.id) || 0
+        }))
 
-        this.lastUpdate = Date.now();
-        this.saveCacheToLocalStorage();
+        // Sort by market cap
+        this.coins.sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0))
+        
+        this.lastUpdate = Date.now()
+        debugCache('Cache updated with %d coins', this.coins.length)
       } catch (error) {
-        console.error('Failed to fetch coin list:', error);
-        this.loadCacheFromLocalStorage();
+        debugCache('Failed to update cache: %o', error)
+        // If fetch fails and we have no data, rethrow
+        if (this.coins.length === 0) throw error
       }
     }
-    return this.coins;
+
+    return this.coins
   }
 }
 
-export const coinListCache = new CoinListCache();
+// Export singleton instance
+export const coinListCache = new CoinListCache()
+
+// Export helper function
+export const getCoinList = () => coinListCache.getCoinList()
